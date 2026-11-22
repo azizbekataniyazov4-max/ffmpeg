@@ -13,9 +13,9 @@ os.makedirs(os.path.join(TL.BUILD, "vo"), exist_ok=True)
 synth = Synth(Model(model_path=model_dir))
 # speaker id, speech rate, pitch factor, extra filter
 VOICE = {
-    "narrator": (4, 0.88, 0.97, "lowshelf=g=4:f=160,"),
-    "future":   (3, 0.92, 0.93, "lowshelf=g=2:f=180,"),
-    "hero":     (3, 1.0, 1.13, "highpass=f=120,"),
+    "narrator": (4, 1.12, 1.0, "equalizer=f=250:t=q:w=1:g=-2,equalizer=f=3500:t=q:w=1:g=2.5,"),
+    "future":   (3, 1.1, 1.0, "equalizer=f=250:t=q:w=1:g=-1.5,equalizer=f=3000:t=q:w=1:g=2,"),
+    "hero":     (3, 1.15, 1.12, "highpass=f=110,equalizer=f=3500:t=q:w=1:g=2,"),
 }
 out = []
 for sc in d["scenes"]:
@@ -24,9 +24,10 @@ for sc in d["scenes"]:
         raw = os.path.join(TL.BUILD, "vo", f"{sc['id']}_{i}_raw.wav")
         fin = os.path.join(TL.BUILD, "vo", f"{sc['id']}_{i}.wav")
         synth.synth(l["ru"], raw, speaker_id=spk, speech_rate=rate, noise_level=0.6, duration_noise_level=0.6)
-        af = (f"asetrate={int(22050 * pitch)},aresample=48000,atempo={1 / pitch:.4f},"
+        shift = f"rubberband=pitch={pitch}:formant=preserved:pitchq=quality," if pitch != 1.0 else ""
+        af = (f"aresample=48000,{shift}"
               "silenceremove=start_periods=1:start_threshold=-45dB,areverse,silenceremove=start_periods=1:start_threshold=-45dB,areverse,"
-              f"highpass=f=60,{eq}acompressor=threshold=-20dB:ratio=3:attack=5:release=80,loudnorm=I=-16:TP=-1.5")
+              f"highpass=f=60,{eq}acompressor=threshold=-18dB:ratio=2:attack=10:release=120,loudnorm=I=-16:TP=-1.5")
         subprocess.run(["ffmpeg", "-y", "-v", "error", "-i", raw, "-af", af, "-ar", "48000", "-ac", "1", fin], check=True)
         dur = float(subprocess.check_output(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", fin]))
         out.append({"scene": sc["id"], "i": i, "sp": l["sp"], "text": l["ru"], "file": fin, "dur": dur, "hold": l.get("hold", 0)})
